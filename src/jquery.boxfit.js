@@ -23,7 +23,7 @@
   'use strict';
   var boxfit = function ($nodes, options) {
     return $nodes.each(function () {
-      var current_step, inner_span, next_font_size, original_height, original_text, original_width, settings, span;
+      var current_step, inner_span, minimum_font, maximum_font, next_font_size, original_height, original_text, original_width, settings, span;
       settings = {
         // manually set a width/height if you haven't set one explicitly via CSS
         width: null,
@@ -90,21 +90,42 @@
         // fixing issue where custom line-heights would break wrapped text
         inner_span.css('line-height', settings.line_height);
 
-        // keep growing the target so long as we haven't exceeded the width or height
-        inner_span.css('font-size', settings.minimum_font_size);
-        while ($(this).width() <= original_width && $(this).height() <= original_height) {
-          if (current_step++ > settings.step_limit) {
-            break;
+        if (settings.maximum_font_size) {
+          // use binary searching algorithm if we have max font size set
+          minimum_font = settings.minimum_font_size;
+          maximum_font = settings.maximum_font_size;
+
+          next_font_size = parseInt((minimum_font + maximum_font) / 2, 10);
+          inner_span.css('font-size', (next_font_size));
+
+          while (minimum_font <= maximum_font) {
+            if($(this).width() <= original_width && $(this).height() <= original_height){
+              minimum_font = next_font_size + 1;
+            } else {
+              maximum_font = next_font_size - 1;
+            }
+
+            next_font_size = parseInt((minimum_font + maximum_font) / 2, 10);
+            inner_span.css('font-size', (next_font_size));
           }
-          next_font_size = parseInt(inner_span.css('font-size'), 10);
-          if (settings.maximum_font_size && next_font_size > settings.maximum_font_size) {
-            break;
+        } else {
+          // keep growing the target so long as we haven't exceeded the width or height
+          inner_span.css('font-size', settings.minimum_font_size);
+          while ($(this).width() <= original_width && $(this).height() <= original_height) {
+            if (current_step++ > settings.step_limit) {
+              break;
+            }
+            next_font_size = parseInt(inner_span.css('font-size'), 10);
+            if (settings.maximum_font_size && next_font_size > settings.maximum_font_size) {
+              break;
+            }
+            inner_span.css('font-size', next_font_size + settings.step_size);
           }
-          inner_span.css('font-size', next_font_size + settings.step_size);
+
+          // go back one step
+          inner_span.css('font-size', parseInt(inner_span.css('font-size'), 10) - settings.step_size);
         }
 
-        // go back one step
-        inner_span.css('font-size', parseInt(inner_span.css('font-size'), 10) - settings.step_size);
         return $(this);
       }
     });
